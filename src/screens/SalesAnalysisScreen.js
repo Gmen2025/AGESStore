@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useStore } from '../context/StoreContext';
+import { api } from '../api';
 import { demoSales } from '../data/demoData';
 import { COLORS, SPACING } from '../theme/colors';
 import { Section, money } from '../components/common';
@@ -18,8 +21,23 @@ function Row({ label, value, negative, bold }) {
 }
 
 export default function SalesAnalysisScreen() {
+  const { owner } = useStore();
   const [range, setRange] = useState('30 Days');
-  const [data] = useState(demoSales);
+  const [data, setData] = useState(demoSales);
+
+  const RANGE_KEYS = { Today: 'today', '7 Days': '7d', '30 Days': '30d', '3 Months': '3m', '1 Year': '1y' };
+
+  const load = useCallback(async () => {
+    if (!owner?.storeId) return;
+    try {
+      const result = await api.getSalesAnalysis(owner.storeId, RANGE_KEYS[range]);
+      if (result) setData((d) => ({ ...d, [range]: { ...d[range], ...result } }));
+    } catch (e) {
+      console.warn('sales load failed', e.message);
+    }
+  }, [owner?.storeId, range]);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const s = data[range];
 

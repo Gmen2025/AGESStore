@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { demoOwner, demoDashboard } from '../data/demoData';
+import { api, setToken } from '../api';
+import { demoDashboard } from '../data/demoData';
 
 const StoreContext = createContext(null);
 
@@ -33,14 +34,45 @@ export function StoreProvider({ children }) {
   };
 
   const register = async (form) => {
-    const newOwner = { ...demoOwner, ...form, id: `owner-${Date.now()}` };
+    const result = await api.registerStore(form);
+    // result: { success, token, owner: {...} }
+    await setToken(result?.token);
+    const newOwner = {
+      ...(result?.owner || {}),
+      // keep the registration fields locally for the profile screen
+      ...form,
+      id: result?.owner?.id,
+      storeId: result?.owner?.storeId,
+      storeName: result?.owner?.storeName || form.storeName,
+      fullName: result?.owner?.fullName || form.fullName,
+      email: result?.owner?.email || form.email,
+    };
     setOwner(newOwner);
     await persist(newOwner);
     return newOwner;
   };
 
   const login = async (email, password) => {
-    const loggedIn = { ...demoOwner, email };
+    const result = await api.login(email, password);
+    // result: { _id, name, email, phone, token, ... }
+    await setToken(result?.token);
+
+    // Resolve the owner's store (id, profile fields) from the backend.
+    let store = null;
+    try {
+      const mine = await api.getMyStore();
+      store = mine?.store || null;
+    } catch { /* no store yet */ }
+
+    const loggedIn = {
+      id: result?._id || result?.id,
+      storeId: store?.id || null,
+      fullName: result?.name,
+      storeName: store?.name || 'My Store',
+      email: result?.email || email,
+      phone: result?.phone,
+      ...(store || {}),
+    };
     setOwner(loggedIn);
     await persist(loggedIn);
     return loggedIn;
@@ -48,6 +80,7 @@ export function StoreProvider({ children }) {
 
   const logout = async () => {
     setOwner(null);
+    await setToken(null);
     await persist(null);
   };
 

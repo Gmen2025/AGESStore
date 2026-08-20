@@ -1,11 +1,32 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useStore } from '../context/StoreContext';
+import { api } from '../api';
 import { demoReviews } from '../data/demoData';
 import { COLORS, SPACING } from '../theme/colors';
 import { Stars } from '../components/common';
 
 export default function ReviewsScreen() {
-  const [reviews] = useState(demoReviews);
+  const { owner } = useStore();
+  const [reviews, setReviews] = useState(demoReviews);
+
+  const load = useCallback(async () => {
+    if (!owner?.storeId) return;
+    try {
+      const result = await api.getReviews(owner.storeId);
+      if (result?.reviews) {
+        setReviews(result.reviews.map((r) => ({
+          ...r,
+          date: r.date ? new Date(r.date).toLocaleDateString() : '',
+        })));
+      }
+    } catch (e) {
+      console.warn('reviews load failed', e.message);
+    }
+  }, [owner?.storeId]);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const avg = reviews.length
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)

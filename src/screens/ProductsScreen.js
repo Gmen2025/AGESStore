@@ -1,8 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, Modal,
   TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useStore } from '../context/StoreContext';
+import { api } from '../api';
 import { demoProducts } from '../data/demoData';
 import { COLORS, SPACING } from '../theme/colors';
 import { Badge, money } from '../components/common';
@@ -16,11 +19,24 @@ const stockStatus = (p) => {
 const EMPTY_FORM = { name: '', sku: '', category: '', description: '', price: '', stock: '', minStock: '10', brand: '', weight: '' };
 
 export default function ProductsScreen({ route }) {
+  const { owner } = useStore();
   const [products, setProducts] = useState(demoProducts);
   const [filter, setFilter] = useState(route?.params?.filter ?? 'all');
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!owner?.storeId) return;
+    try {
+      const result = await api.getProducts(owner.storeId);
+      if (result?.products) setProducts(result.products.length ? result.products : demoProducts);
+    } catch (e) {
+      console.warn('products load failed', e.message);
+    }
+  }, [owner?.storeId]);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -30,29 +46,43 @@ export default function ProductsScreen({ route }) {
     return products;
   }, [products, filter]);
 
-  const addProduct = () => {
+  const addProduct = async () => {
     if (!form.name || !form.price) {
       Alert.alert('Missing fields', 'Product name and selling price are required.');
       return;
     }
     setSaving(true);
-    const created = {
+    const payload = {
       ...form,
-      id: `p-${Date.now()}`,
       price: parseFloat(form.price) || 0,
       stock: parseInt(form.stock, 10) || 0,
       minStock: parseInt(form.minStock, 10) || 0,
-      sold: 0,
     };
-    setProducts((list) => [created, ...list]);
-    setSaving(false);
-    setModal(false);
-    setForm(EMPTY_FORM);
+    try {
+      const result = await api.createProduct(owner?.storeId, payload);
+      const created = result?.product
+        ? { ...result.product, sold: result.product.sold ?? 0, category: form.category }
+        : { ...payload, id: `p-${Date.now()}`, sold: 0 };
+      setProducts((list) => [created, ...list]);
+      setModal(false);
+      setForm(EMPTY_FORM);
+    } catch (e) {
+      Alert.alert('Could not add product', e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const adjustStock = (product, delta) => {
+  const adjustStock = async (product, delta) => {
     const next = Math.max(0, product.stock + delta);
     setProducts((list) => list.map((p) => (p.id === product.id ? { ...p, stock: next } : p)));
+    try {
+      await api.adjustStock(owner?.storeId, product.id, { delta, reason: delta > 0 ? 'restock' : 'manual adjustment' });
+    } catch (e) {
+      // revert on failure
+      setProducts((list) => list.map((p) => (p.id === product.id ? { ...p, stock: product.stock } : p)));
+      Alert.alert('Stock update failed', e.message);
+    }
   };
 
   const FILTERS = [

@@ -1,5 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useStore } from '../context/StoreContext';
+import { api } from '../api';
 import { demoOrders } from '../data/demoData';
 import { COLORS, SPACING } from '../theme/colors';
 import { Badge, money } from '../components/common';
@@ -17,9 +20,27 @@ const STATUS_COLORS = {
 };
 
 export default function OrdersScreen() {
+  const { owner } = useStore();
   const [orders, setOrders] = useState(demoOrders);
   const [tab, setTab] = useState('Active');
   const [expanded, setExpanded] = useState(null);
+
+  const load = useCallback(async () => {
+    if (!owner?.storeId) return;
+    try {
+      const result = await api.getOrders(owner.storeId);
+      if (result?.orders) {
+        setOrders(result.orders.map((o) => ({
+          ...o,
+          time: o.time ? new Date(o.time).toLocaleString() : '',
+        })));
+      }
+    } catch (e) {
+      console.warn('orders load failed', e.message);
+    }
+  }, [owner?.storeId]);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const filtered = useMemo(() => {
     if (tab === 'Active') return orders.filter((o) => !['Delivered', 'Cancelled'].includes(o.status));
@@ -27,15 +48,29 @@ export default function OrdersScreen() {
     return orders.filter((o) => o.status === 'Cancelled');
   }, [orders, tab]);
 
-  const advance = (order) => {
+  const advance = async (order) => {
     const idx = PIPELINE.indexOf(order.status);
     if (idx < 0 || idx >= PIPELINE.length - 1) return;
     const next = PIPELINE[idx + 1];
+    const prev = order.status;
     setOrders((list) => list.map((o) => (o.id === order.id ? { ...o, status: next } : o)));
+    try {
+      await api.updateOrderStatus(owner?.storeId, order.id, next);
+    } catch (e) {
+      setOrders((list) => list.map((o) => (o.id === order.id ? { ...o, status: prev } : o)));
+      Alert.alert('Update failed', e.message);
+    }
   };
 
-  const cancel = (order) => {
+  const cancel = async (order) => {
+    const prev = order.status;
     setOrders((list) => list.map((o) => (o.id === order.id ? { ...o, status: 'Cancelled' } : o)));
+    try {
+      await api.updateOrderStatus(owner?.storeId, order.id, 'Cancelled');
+    } catch (e) {
+      setOrders((list) => list.map((o) => (o.id === order.id ? { ...o, status: prev } : o)));
+      Alert.alert('Update failed', e.message);
+    }
   };
 
   return (

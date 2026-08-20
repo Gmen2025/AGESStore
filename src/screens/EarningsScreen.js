@@ -1,12 +1,38 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useStore } from '../context/StoreContext';
+import { api } from '../api';
 import { demoEarnings } from '../data/demoData';
 import { COLORS, SPACING } from '../theme/colors';
 import { Section, money } from '../components/common';
 
 export default function EarningsScreen() {
+  const { owner } = useStore();
   const [earnings, setEarnings] = useState(demoEarnings);
   const [requesting, setRequesting] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!owner?.storeId) return;
+    try {
+      const result = await api.getEarnings(owner.storeId);
+      if (result) {
+        setEarnings({
+          available: result.available ?? 0,
+          pending: result.pending ?? 0,
+          totalEarned: result.totalEarned ?? 0,
+          transactions: (result.transactions || []).map((t) => ({
+            ...t,
+            date: t.date ? new Date(t.date).toLocaleDateString() : '',
+          })),
+        });
+      }
+    } catch (e) {
+      console.warn('earnings load failed', e.message);
+    }
+  }, [owner?.storeId]);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const requestPayout = async () => {
     if (earnings.available <= 0) {
@@ -20,12 +46,17 @@ export default function EarningsScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          onPress: () => {
+          onPress: async () => {
             setRequesting(true);
-            // Move available -> pending (local state only)
-            setEarnings((e) => ({ ...e, available: 0, pending: e.pending + e.available }));
-            setRequesting(false);
-            Alert.alert('Payout requested', 'Your payout is now pending and will be processed by the platform.');
+            try {
+              await api.requestPayout(owner?.storeId, { amount: earnings.available });
+              setEarnings((e) => ({ ...e, available: 0, pending: e.pending + e.available }));
+              Alert.alert('Payout requested', 'Your payout is now pending and will be processed by the platform.');
+            } catch (e) {
+              Alert.alert('Payout failed', e.message);
+            } finally {
+              setRequesting(false);
+            }
           },
         },
       ]

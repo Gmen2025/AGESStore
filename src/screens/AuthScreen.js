@@ -150,7 +150,7 @@ export default function AuthScreen() {
         </TouchableOpacity>
 
         <Text style={styles.hint}>
-          Demo mode: any credentials work — the app uses local demo data until you connect the backend in src/api.js.
+          Connected to the live AGES backend. Register a store or log in with your owner account.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

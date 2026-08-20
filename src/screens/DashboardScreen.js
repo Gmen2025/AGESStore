@@ -1,17 +1,35 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../context/StoreContext';
+import { api } from '../api';
 import { demoDashboard, demoTopProducts } from '../data/demoData';
 import { COLORS, SPACING } from '../theme/colors';
 import { StatCard, Section, Badge, money } from '../components/common';
 
 export default function DashboardScreen({ navigation }) {
   const { owner } = useStore();
-  const [stats] = useState(demoDashboard);
-  const [topProducts] = useState(demoTopProducts);
+  const [stats, setStats] = useState(demoDashboard);
+  const [topProducts, setTopProducts] = useState(demoTopProducts);
   const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = () => { setRefreshing(true); setTimeout(() => setRefreshing(false), 400); };
+  const load = useCallback(async () => {
+    if (!owner?.storeId) return;
+    try {
+      const [d, t] = await Promise.all([
+        api.getDashboard(owner.storeId),
+        api.getTopProducts(owner.storeId),
+      ]);
+      if (d) setStats((s) => ({ ...s, ...d }));
+      if (t?.products) setTopProducts(t.products.length ? t.products : demoTopProducts);
+    } catch (e) {
+      console.warn('dashboard load failed', e.message);
+    }
+  }, [owner?.storeId]);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const maxSold = Math.max(...topProducts.map((p) => p.sold), 1);
 
