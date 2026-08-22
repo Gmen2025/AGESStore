@@ -1,7 +1,10 @@
 // API layer — connected to the production backend shared by customer/driver/store apps.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'https://easy-shop-server-wldr.onrender.com/api/v1';
+const BASE_URL = (
+  process.env.EXPO_PUBLIC_API_URL ||
+  'https://easy-shop-server-wldr.onrender.com/api/v1'
+).replace(/\/+$/, '');
 const TOKEN_KEY = 'ages_token';
 
 export async function getToken() {
