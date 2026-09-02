@@ -50,7 +50,7 @@ export const api = {
   registerStore: (payload) =>
     request('/stores/register-owner', { method: 'POST', body: payload, auth: false }),
   login: (email, password) =>
-    request('/users/login', { method: 'POST', body: { email, password }, auth: false }),
+    request('/users/store-owner-login', { method: 'POST', body: { email, password }, auth: false }),
   getMyStore: () => request('/stores/mine/by-owner'),
 
   // Dashboard & analytics

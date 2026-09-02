@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Linking,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { useStore } from '../context/StoreContext';
@@ -30,6 +30,18 @@ export default function AuthScreen() {
   });
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+
+  useEffect(() => {
+    const applyRegisterLink = (url) => {
+      if (!url || !url.startsWith('agesstore://register')) return;
+      const email = url.match(/[?&]email=([^&]+)/)?.[1];
+      setMode('register');
+      if (email) setForm((current) => ({ ...current, email: decodeURIComponent(email) }));
+    };
+    Linking.getInitialURL().then(applyRegisterLink);
+    const subscription = Linking.addEventListener('url', ({ url }) => applyRegisterLink(url));
+    return () => subscription.remove();
+  }, []);
 
   const captureLocation = async () => {
     setLocating(true);
@@ -90,7 +102,7 @@ export default function AuthScreen() {
           {['login', 'register'].map((m) => (
             <TouchableOpacity key={m} style={[styles.switchBtn, mode === m && styles.switchActive]} onPress={() => setMode(m)}>
               <Text style={[styles.switchText, mode === m && styles.switchTextActive]}>
-                {m === 'login' ? 'Login' : 'Register Store'}
+                {m === 'login' ? 'Login' : 'Register / Upgrade'}
               </Text>
             </TouchableOpacity>
           ))}
@@ -145,7 +157,7 @@ export default function AuthScreen() {
 
         <TouchableOpacity style={styles.submit} onPress={submit} disabled={busy}>
           {busy ? <ActivityIndicator color="#fff" /> : (
-            <Text style={styles.submitText}>{mode === 'login' ? 'Login' : 'Create Store Account'}</Text>
+            <Text style={styles.submitText}>{mode === 'login' ? 'Login' : 'Submit Store Application'}</Text>
           )}
         </TouchableOpacity>
 
