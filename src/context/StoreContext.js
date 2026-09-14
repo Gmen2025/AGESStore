@@ -101,43 +101,25 @@ export function StoreProvider({ children }) {
     return loggedIn;
   };
 
-  // Re-fetches the store profile (GPS location, hours, etc.) and merges it into the current owner.
-  // Used to recover from a failed/stale fetch and to refresh after a database switch.
-  const refreshStore = async () => {
-    if (!owner) return null;
-    try {
-      const mine = await api.getMyStore();
-      const store = mine?.store || null;
-      if (!store) return null;
-      const updated = { ...owner, storeId: store.id || owner.storeId, ...normalizeStore(store) };
-      setOwner(updated);
-      await persist(updated);
-      return updated;
-    } catch (e) {
-      console.warn('refreshStore failed', e?.message || e);
-      return null;
-    }
-  };
-
-  // Persists edits (address, GPS, hours, etc.) to the backend and syncs the local owner state.
-  const updateStoreProfile = async (payload) => {
-    const result = await api.updateMyStore(payload);
-    const store = result?.store || null;
-    if (!store) return owner;
-    const updated = { ...owner, storeId: store.id || owner?.storeId, ...normalizeStore(store) };
-    setOwner(updated);
-    await persist(updated);
-    return updated;
-  };
-
   const logout = async () => {
     setOwner(null);
     await setToken(null);
     await persist(null);
   };
 
+  const updateProfile = async (form) => {
+    const result = await api.updateMyStore(form);
+    const updated = {
+      ...owner,
+      ...normalizeStore(result?.store || form),
+    };
+    setOwner(updated);
+    await persist(updated);
+    return updated;
+  };
+
   return (
-    <StoreContext.Provider value={{ owner, dashboard, setDashboard, loading, register, login, logout, refreshStore, updateStoreProfile, dbVersion, bumpDb }}>
+    <StoreContext.Provider value={{ owner, dashboard, setDashboard, loading, register, login, logout, updateProfile, dbVersion, bumpDb }}>
       {children}
     </StoreContext.Provider>
   );
