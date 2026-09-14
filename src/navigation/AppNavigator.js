@@ -3,7 +3,10 @@ import { Text, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme/colors';
+import AppHeader from '../components/AppHeader';
+import CountrySwitcher from '../components/CountrySwitcher';
 import DashboardScreen from '../screens/DashboardScreen';
 import SalesAnalysisScreen from '../screens/SalesAnalysisScreen';
 import ProductsScreen from '../screens/ProductsScreen';
@@ -28,14 +31,16 @@ function TabIcon({ name, focused }) {
 }
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
+        headerShown: true,
+        header: () => <AppHeader />,
         tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textSecondary,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [styles.tabBar, { height: 56 + insets.bottom, paddingBottom: insets.bottom + 8 }],
       })}
     >
       <Tab.Screen name="Home" component={DashboardScreen} />
@@ -50,7 +55,7 @@ function MainTabs() {
 export default function AppNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerTintColor: COLORS.primary, headerTitleStyle: { fontWeight: '700' } }}>
+      <Stack.Navigator screenOptions={{ headerTintColor: COLORS.primary, headerTitleStyle: { fontWeight: '700' }, headerRight: () => <CountrySwitcher /> }}>
         <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
         <Stack.Screen name="Sales" component={SalesAnalysisScreen} options={{ title: 'Sales Analysis' }} />
         <Stack.Screen name="Reviews" component={ReviewsScreen} options={{ title: 'Customer Reviews' }} />
@@ -60,6 +65,6 @@ export default function AppNavigator() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: { height: 62, paddingBottom: 8, paddingTop: 6, backgroundColor: COLORS.card },
+  tabBar: { paddingTop: 6, backgroundColor: COLORS.card },
   tabIcon: { fontSize: 20 },
 });

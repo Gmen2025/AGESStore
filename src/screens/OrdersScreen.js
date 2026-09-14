@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../context/StoreContext';
 import { api } from '../api';
@@ -20,7 +21,7 @@ const STATUS_COLORS = {
 };
 
 export default function OrdersScreen() {
-  const { owner } = useStore();
+  const { owner, dbVersion } = useStore();
   const [orders, setOrders] = useState(demoOrders);
   const [tab, setTab] = useState('Active');
   const [expanded, setExpanded] = useState(null);
@@ -38,7 +39,7 @@ export default function OrdersScreen() {
     } catch (e) {
       console.warn('orders load failed', e.message);
     }
-  }, [owner?.storeId]);
+  }, [owner?.storeId, dbVersion]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -74,7 +75,7 @@ export default function OrdersScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <Text style={styles.title}>Orders</Text>
       <View style={styles.tabs}>
         {['Active', 'Completed', 'Cancelled'].map((t) => (
@@ -132,7 +133,7 @@ export default function OrdersScreen() {
           );
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

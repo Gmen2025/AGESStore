@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, Modal,
   TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../context/StoreContext';
 import { api } from '../api';
@@ -19,7 +20,7 @@ const stockStatus = (p) => {
 const EMPTY_FORM = { name: '', sku: '', category: '', description: '', price: '', stock: '', minStock: '10', brand: '', weight: '' };
 
 export default function ProductsScreen({ route }) {
-  const { owner } = useStore();
+  const { owner, dbVersion } = useStore();
   const [products, setProducts] = useState(demoProducts);
   const [filter, setFilter] = useState(route?.params?.filter ?? 'all');
   const [modal, setModal] = useState(false);
@@ -34,7 +35,7 @@ export default function ProductsScreen({ route }) {
     } catch (e) {
       console.warn('products load failed', e.message);
     }
-  }, [owner?.storeId]);
+  }, [owner?.storeId, dbVersion]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -92,7 +93,7 @@ export default function ProductsScreen({ route }) {
   ];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Products</Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => setModal(true)}>
@@ -140,7 +141,7 @@ export default function ProductsScreen({ route }) {
         }}
       />
 
-      <Modal visible={modal} animationType="slide" onRequestClose={() => setModal(false)}>
+      <Modal visible={modal} animationType="slide" statusBarTranslucent onRequestClose={() => setModal(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView style={styles.modal} contentContainerStyle={{ padding: SPACING.lg }}>
             <Text style={styles.modalTitle}>Add New Product</Text>
@@ -186,7 +187,7 @@ export default function ProductsScreen({ route }) {
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

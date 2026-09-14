@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../context/StoreContext';
 import { api } from '../api';
@@ -8,7 +9,7 @@ import { COLORS, SPACING } from '../theme/colors';
 import { Section, money } from '../components/common';
 
 export default function EarningsScreen() {
-  const { owner } = useStore();
+  const { owner, dbVersion } = useStore();
   const [earnings, setEarnings] = useState(demoEarnings);
   const [requesting, setRequesting] = useState(false);
 
@@ -30,7 +31,7 @@ export default function EarningsScreen() {
     } catch (e) {
       console.warn('earnings load failed', e.message);
     }
-  }, [owner?.storeId]);
+  }, [owner?.storeId, dbVersion]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -64,8 +65,8 @@ export default function EarningsScreen() {
   };
 
   return (
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
     <FlatList
-      style={styles.container}
       contentContainerStyle={{ padding: SPACING.md }}
       data={earnings.transactions}
       keyExtractor={(item) => item.id}
@@ -113,6 +114,7 @@ export default function EarningsScreen() {
       )}
       ListEmptyComponent={<Text style={styles.empty}>No transactions yet.</Text>}
     />
+    </SafeAreaView>
   );
 }
 

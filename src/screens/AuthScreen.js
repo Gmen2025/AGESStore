@@ -4,8 +4,10 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Linking,
 } from 'react-native';
 import * as Location from 'expo-location';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../context/StoreContext';
 import { COLORS, SPACING } from '../theme/colors';
+import CountrySwitcher from '../components/CountrySwitcher';
 
 function Field({ label, ...props }) {
   return (
@@ -93,6 +95,10 @@ export default function AuthScreen() {
   };
 
   return (
+    <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom', 'left', 'right']}>
+    <View style={styles.dbBar}>
+      <CountrySwitcher />
+    </View>
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.container} contentContainerStyle={{ padding: SPACING.lg }}>
         <Text style={styles.brand}>AGES Store Owner</Text>
@@ -166,11 +172,16 @@ export default function AuthScreen() {
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  dbBar: {
+    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.card,
+  },
   brand: { fontSize: 28, fontWeight: '800', color: COLORS.primary, marginTop: SPACING.xl },
   tagline: { color: COLORS.textSecondary, marginBottom: SPACING.lg, marginTop: 4 },
   switch: { flexDirection: 'row', backgroundColor: COLORS.border, borderRadius: 12, padding: 4, marginBottom: SPACING.lg },

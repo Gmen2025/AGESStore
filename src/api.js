@@ -1,5 +1,6 @@
 // API layer — connected to the production backend shared by customer/driver/store apps.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDatabaseNameFromStorage } from './databaseConfig';
 
 const BASE_URL = (
   process.env.EXPO_PUBLIC_API_URL ||
@@ -19,6 +20,7 @@ export async function setToken(token) {
 
 async function request(path, { method = 'GET', body, auth = true } = {}) {
   const headers = { 'Content-Type': 'application/json' };
+  headers['x-database-name'] = await getDatabaseNameFromStorage();
   if (auth) {
     const token = await getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -36,10 +38,15 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
   }
 
   let data = null;
-  try { data = await res.json(); } catch { /* non-JSON */ }
+  const rawText = await res.text().catch(() => '');
+  try { data = rawText ? JSON.parse(rawText) : null; } catch { /* non-JSON */ }
+
+  if (__DEV__) {
+    console.log(`[api] ${method} ${path} -> ${res.status}`, rawText?.slice(0, 500));
+  }
 
   if (!res.ok) {
-    const msg = (data && (data.message || data.error)) || (typeof data === 'string' ? data : '') || `Request failed (${res.status})`;
+    const msg = (data && (data.message || data.error)) || (typeof data === 'string' ? data : '') || `Request failed (${res.status}) on ${method} ${path}`;
     throw new Error(msg);
   }
   return data;
@@ -52,6 +59,7 @@ export const api = {
   login: (email, password) =>
     request('/users/store-owner-login', { method: 'POST', body: { email, password }, auth: false }),
   getMyStore: () => request('/stores/mine/by-owner'),
+  updateMyStore: (payload) => request('/stores/mine/update', { method: 'PUT', body: payload }),
 
   // Dashboard & analytics
   getDashboard: (storeId) => request(`/stores/${storeId}/dashboard`),

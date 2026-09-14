@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../context/StoreContext';
 import { api } from '../api';
@@ -8,7 +9,7 @@ import { COLORS, SPACING } from '../theme/colors';
 import { StatCard, Section, Badge, money } from '../components/common';
 
 export default function DashboardScreen({ navigation }) {
-  const { owner } = useStore();
+  const { owner, dbVersion } = useStore();
   const [stats, setStats] = useState(demoDashboard);
   const [topProducts, setTopProducts] = useState(demoTopProducts);
   const [refreshing, setRefreshing] = useState(false);
@@ -25,7 +26,7 @@ export default function DashboardScreen({ navigation }) {
     } catch (e) {
       console.warn('dashboard load failed', e.message);
     }
-  }, [owner?.storeId]);
+  }, [owner?.storeId, dbVersion]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -34,6 +35,7 @@ export default function DashboardScreen({ navigation }) {
   const maxSold = Math.max(...topProducts.map((p) => p.sold), 1);
 
   return (
+    <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={{ padding: SPACING.md }}
@@ -79,6 +81,7 @@ export default function DashboardScreen({ navigation }) {
         ))}
       </Section>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

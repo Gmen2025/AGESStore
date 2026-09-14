@@ -5,10 +5,32 @@ import { demoDashboard } from '../data/demoData';
 
 const StoreContext = createContext(null);
 
+// Backend field names for the store document can vary (e.g. nested location/hours objects).
+// This maps the possible shapes onto the flat fields the profile screen reads.
+function normalizeStore(store) {
+  if (!store) return {};
+  const coords = store.location?.coordinates; // GeoJSON: [lng, lat]
+  return {
+    ...store,
+    address: store.address ?? store.storeAddress ?? store.location?.address,
+    city: store.city ?? store.location?.city,
+    country: store.country ?? store.location?.country,
+    category: store.category ?? store.businessCategory,
+    description: store.description ?? store.about ?? store.bio,
+    bankAccount: store.bankAccount ?? store.payoutAccount ?? store.bank?.account,
+    openHour: store.openHour ?? store.businessHours?.open ?? store.openingHours?.open,
+    closeHour: store.closeHour ?? store.businessHours?.close ?? store.openingHours?.close,
+    latitude: store.latitude ?? store.location?.latitude ?? (Array.isArray(coords) ? coords[1] : undefined),
+    longitude: store.longitude ?? store.location?.longitude ?? (Array.isArray(coords) ? coords[0] : undefined),
+  };
+}
+
 export function StoreProvider({ children }) {
   const [owner, setOwner] = useState(null);       // logged-in store owner
   const [dashboard, setDashboard] = useState(demoDashboard);
   const [loading, setLoading] = useState(true);
+  const [dbVersion, setDbVersion] = useState(0);   // bumped whenever the active database changes
+  const bumpDb = () => setDbVersion((v) => v + 1);
 
   // Restore persisted session on launch
   useEffect(() => {
@@ -62,6 +84,7 @@ export function StoreProvider({ children }) {
     try {
       const mine = await api.getMyStore();
       store = mine?.store || null;
+      if (__DEV__) console.log('getMyStore raw response:', JSON.stringify(store));
     } catch { /* no store yet */ }
 
     const loggedIn = {
@@ -71,11 +94,40 @@ export function StoreProvider({ children }) {
       storeName: store?.name || 'My Store',
       email: result?.email || email,
       phone: result?.phone,
-      ...(store || {}),
+      ...normalizeStore(store),
     };
     setOwner(loggedIn);
     await persist(loggedIn);
     return loggedIn;
+  };
+
+  // Re-fetches the store profile (GPS location, hours, etc.) and merges it into the current owner.
+  // Used to recover from a failed/stale fetch and to refresh after a database switch.
+  const refreshStore = async () => {
+    if (!owner) return null;
+    try {
+      const mine = await api.getMyStore();
+      const store = mine?.store || null;
+      if (!store) return null;
+      const updated = { ...owner, storeId: store.id || owner.storeId, ...normalizeStore(store) };
+      setOwner(updated);
+      await persist(updated);
+      return updated;
+    } catch (e) {
+      console.warn('refreshStore failed', e?.message || e);
+      return null;
+    }
+  };
+
+  // Persists edits (address, GPS, hours, etc.) to the backend and syncs the local owner state.
+  const updateStoreProfile = async (payload) => {
+    const result = await api.updateMyStore(payload);
+    const store = result?.store || null;
+    if (!store) return owner;
+    const updated = { ...owner, storeId: store.id || owner?.storeId, ...normalizeStore(store) };
+    setOwner(updated);
+    await persist(updated);
+    return updated;
   };
 
   const logout = async () => {
@@ -85,7 +137,7 @@ export function StoreProvider({ children }) {
   };
 
   return (
-    <StoreContext.Provider value={{ owner, dashboard, setDashboard, loading, register, login, logout }}>
+    <StoreContext.Provider value={{ owner, dashboard, setDashboard, loading, register, login, logout, refreshStore, updateStoreProfile, dbVersion, bumpDb }}>
       {children}
     </StoreContext.Provider>
   );
